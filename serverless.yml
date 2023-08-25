@@ -1,0 +1,61 @@
+frameworkVersion: "3"
+
+service: logistics
+
+plugins:
+  - serverless-webpack
+  - serverless-offline
+
+custom:
+  webpack:
+    includeModules:
+      forceExclude:
+        - aws-sdk
+
+provider:
+  name: aws
+  runtime: nodejs16.x
+  stackName: logistics
+  region: ${param:deploymentRegion}
+  memorySize: 128
+  timeout: 15
+  logRetentionInDays: 60
+  versionFunctions: false
+  vpc:
+    securityGroupIds:
+      - ${param:lambdaSg}
+    subnetIds:
+      - ${param:appSubnetIdAz1}
+      - ${param:appSubnetIdAz2}
+      - ${param:appSubnetIdAz3}
+  iam:
+    role:
+      statements:
+        - Effect: "Allow"
+          Action:
+            - ec2:CreateNetworkInterface
+            - ec2:DescribeNetworkInterfaces
+            - ec2:DeleteNetworkInterface
+            - ec2:DescribeSecurityGroups
+            - ec2:DescribeSubnets
+            - ec2:DescribeVpcs
+            - ssm:DescribeParameters
+            - ssm:GetParameters
+            - ssm:GetParameter
+            - ssm:GetParametersByPath
+            - ssm:PutParameter
+            - sqs:SendMessage
+            - sqs:DeleteMessage
+          Resource: "*"
+functions:
+  test:
+    name: ${param:envPrefix}-${param:serviceName}-test
+    handler: src/connectors/lambda-functions/test/index.handler
+    environment:
+      DATABASE_URL: ${ssm:DATABASE_URL, 'mongodb://localhost:27017'}
+      DATABASE_NAME: ${ssm:DATABASE_NAME, 'test'}
+    events:
+      - http:
+          path: test
+          method: get
+          cors: true
